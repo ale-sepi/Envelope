@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objs as go
 import openpyxl
 
 st.title('Envelopes Configurator')
@@ -35,7 +36,7 @@ def check_password():
         return True
 
 if check_password():
-    
+
     Name = st.text_input('Name', 'Insert name of the unit')
     dtmin = st.number_input('DT min [°C]')
     dtmax = st.number_input('DT max [°C]')
@@ -65,49 +66,53 @@ if check_password():
     ymin_values = [ymin_values[i] for i in sorted_indices]
     ymax_values = [ymax_values[i] for i in sorted_indices]
 
+    def Reverse(lst):
+        new_lst = lst[::-1]
+        return new_lst
 
-    if len(x_values) > 0:
-
-        # Display the graph
-        fig, ax = plt.subplots()
-        ax.fill_between(x_values, ymin_values, ymax_values, color='lightblue', alpha=0.5)
-        ax.plot(x_values, ymin_values, marker= 'o', color='blue')
-        ax.plot(x_values, ymax_values, marker = 'o', color='blue')
-        ax.plot([x_values[0], x_values[0]], [ymin_values[0], ymax_values[0]], color='blue', marker = 'o')
-        ax.plot([x_values[-1], x_values[-1]], [ymin_values[-1], ymax_values[-1]], color='blue', marker = 'o')
-        ax.set_xlabel('ELWT [°C]')
-        ax.set_ylabel('OAT [°C]')
-        fig.suptitle(Name, fontsize=14)
+    x_data = x_values + Reverse(x_values)
+    y_data = ymin_values + Reverse(ymax_values)
 
 
-        offset_x = 0.15 * len(x_values) - 0.1
-        #offset_x = 0.05
 
-        #for i_x1, i_y1 in zip(x_values[:-1], ymin_values[:-1]):
-            #plt.text(i_x1 + offset_x, i_y1 + 2, '({}, {})'.format(i_x1, i_y1))
-        #for i_x2, i_y2 in zip(x_values[:-1], ymax_values[:-1]):
-            #plt.text(i_x2 + offset_x , i_y2 -4, '({}, {})'.format(i_x2, i_y2))
+    if len(x_data) > 0:
+        x_data.append(x_data[0])
+        y_data.append(y_data[0])
+        # Create a Plotly trace for the polygon using a line plot
+        polygon_trace = go.Scatter(
+        x=x_data,
+        y=y_data,
+        mode="lines+markers",
+        marker=dict(size=10, color='blue'),
+        fill="toself",  # Filled polygon
+        fillcolor="rgba(0,100,80,0.2)",  # Polygon fill color with opacity
+        line=dict(color="blue"),
+    )
 
+    # Create a Plotly layout
+        layout = go.Layout(
+        title=Name,
+        titlefont = dict(size=22),
+        xaxis=dict(title='ELWT [°C]', autorange=True, showgrid=True),  # Customize x-axis range if needed
+        yaxis=dict(title= 'OAT [°C]', autorange=True, showgrid=True),
         
-        
-        # Display coordinates of the last point
-        #if len(x_values) > 1:
-            #plt.text(x_values[-1] - 5, ymax_values[-1] - 4, '({}, {})'.format(x_values[-1], ymax_values[-1]))
-            #plt.text(x_values[-1] - 5, ymin_values[-1] + 2, '({}, {})'.format(x_values[-1], ymin_values[-1]))
+    )
 
-        plt.grid()
+        # Create a Plotly figure
+        fig = go.Figure(data=[polygon_trace], layout=layout)
 
-        st.pyplot(fig)
+        # Render the Plotly figure in the Streamlit app
+        st.plotly_chart(fig)
+
+
 
 
     # Check if a new row was added
     if result is not None and 'new_row' in result:
         new_row = pd.DataFrame([result['new_row']])
         df = pd.concat([df, new_row], ignore_index=True)
-        ax.relim()
-        ax.autoscale_view()
 
-        st.pyplot(fig)
+        st.plotly_chart(fig)
 
 
     # Excel function to write in the correct format the envelop, ready to be uploaded
@@ -139,12 +144,18 @@ if check_password():
             cell.value = round(value,2)
 
         return workbook
+    
 
 
-    # Call the excel function and generate the sheet when a button is pressed
-    if st.button("Generate Excel"):
+    def download_excel():
         workbook = write_excel_file(x_values, ymin_values, ymax_values)
         file_name = Name + ".xlsx"
-        with st.spinner("Saving the Excel file..."):
-            workbook.save(file_name)
-        st.success(f"Excel file '{file_name}' generated successfully!")
+        workbook.save(file_name)
+
+        with open(Name + ".xlsx", 'rb') as f:
+            data = f.read()
+            st.download_button(label='Download Excel File', data=data, file_name=Name + '.xlsx', key='download_button', mime='application/vnd.ms-excel')
+
+    
+
+    download_excel()
