@@ -60,6 +60,12 @@ if check_password():
     ymax_values = result['Y max [°C]'].astype(float)
 
 
+    # Check on duplicate
+
+    if len(x_values) > len(set(x_values)):
+        st.warning('Two or more points with the same ELWT!', icon="⚠️")
+
+
     # Sorting with respect of x
     sorted_indices = sorted(range(len(x_values)), key=lambda k: x_values[k])
     x_values = [x_values[i] for i in sorted_indices]
@@ -159,3 +165,8 @@ if check_password():
     
 
     download_excel()
+
+
+
+
+
